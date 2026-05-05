@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const db = require("../db"); // ✅ correct
+const db = require("../db");
 
 router.get("/risk", async (req, res) => {
   try {
@@ -25,14 +25,9 @@ router.get("/risk", async (req, res) => {
       percentage = 60;
     }
 
-    res.json({
-      risk,
-      percentage,
-      otpFails,
-      loginFails
-    });
-
+    res.json({ risk, percentage, otpFails, loginFails });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Error calculating risk" });
   }
 });

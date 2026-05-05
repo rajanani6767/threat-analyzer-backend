@@ -7,10 +7,12 @@ app.use(cors());
 app.use(express.json());
 
 const analyticsRoutes = require("./routes/analytics");
+
+// 🔥 IMPORTANT LINE
 app.use("/api", analyticsRoutes);
 
 app.get("/", (req, res) => {
-  res.send("Threat Analyzer Running 🚀");
+  res.send("API running 🚀");
 });
 
 const PORT = process.env.PORT || 5001;
