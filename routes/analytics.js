@@ -16,19 +16,50 @@ router.get("/risk", async (req, res) => {
 
     let risk = "LOW";
     let percentage = 10;
+    let alert = "Normal";
 
-    if (otpFails >= 3 || loginFails >= 5) {
+    // 🔥 Brute force detection
+    if (loginFails >= 5) {
       risk = "HIGH";
-      percentage = 90;
-    } else if (otpFails >= 1 || loginFails >= 3) {
+      percentage = 95;
+      alert = "Brute Force Attack Detected 🚨";
+    }
+    else if (otpFails >= 3) {
+      risk = "HIGH";
+      percentage = 85;
+      alert = "Multiple OTP Failures 🚨";
+    }
+    else if (loginFails >= 2 || otpFails >= 1) {
       risk = "MEDIUM";
       percentage = 60;
+      alert = "Suspicious Activity ⚠️";
     }
 
-    res.json({ risk, percentage, otpFails, loginFails });
+    res.json({
+      risk,
+      percentage,
+      otpFails,
+      loginFails,
+      alert
+    });
+
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: "Error calculating risk" });
+  }
+});
+router.get("/users", async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT email, event, COUNT(*) as count
+      FROM security_logs
+      WHERE event IN ('login_failed','otp_failed')
+      GROUP BY email, event
+      ORDER BY count DESC
+    `);
+
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: "Error fetching users" });
   }
 });
 
