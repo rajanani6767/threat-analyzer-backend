@@ -9,8 +9,9 @@ const authMiddleware = require("../middleware/authMiddleware");
 router.get("/risk", async (req, res) => {
   try {
     const result = await db.query(
-  "SELECT * FROM security_logs WHERE created_at >= NOW() - INTERVAL '30 minutes'"
-);
+      "SELECT * FROM security_logs WHERE created_at >= NOW() - INTERVAL '30 minutes'"
+    );
+
     let otpFails = 0;
     let loginFails = 0;
 
@@ -55,13 +56,16 @@ router.get("/risk", async (req, res) => {
 
 
 // ================= PER USER ANALYSIS =================
-const result = await db.query(`
+router.get("/user-risk", async (req, res) => {
+  try {
+    const result = await db.query(`
       SELECT email, event, COUNT(*) as count
       FROM security_logs
       WHERE event IN ('login_failed','otp_failed')
         AND created_at >= NOW() - INTERVAL '30 minutes'
       GROUP BY email, event
     `);
+
     const users = {};
 
     // 🔹 Build user-wise data
@@ -131,6 +135,7 @@ router.get("/admin/high-risk", authMiddleware, adminMiddleware, async (req, res)
         AND created_at >= NOW() - INTERVAL '30 minutes'
       GROUP BY email, event
     `);
+
     const users = {};
 
     result.rows.forEach(row => {
