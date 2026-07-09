@@ -117,7 +117,7 @@ router.get("/user-risk", async (req, res) => {
       };
     });
 
-    res.json(userRiskList);
+    res.json(result.rows);
 
   } catch (err) {
     res.status(500).json({ error: "Error calculating user risk" });
