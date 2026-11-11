@@ -59,35 +59,46 @@ router.get("/risk", async (req, res) => {
 router.get("/user-risk", async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT email, event, COUNT(*) as count
+      SELECT
+        LOWER(email) AS email,
+        event,
+        COUNT(*) AS count,
+        MAX(created_at) AS created_at
       FROM security_logs
-      WHERE event IN ('login_failed','otp_failed')
+      WHERE event IN ('login_failed', 'otp_failed')
         AND created_at >= NOW() - INTERVAL '30 minutes'
-      GROUP BY email, event
+      GROUP BY LOWER(email), event
+      ORDER BY MAX(created_at) DESC
     `);
 
     const users = {};
 
-    // 🔹 Build user-wise data
     result.rows.forEach(row => {
       if (!users[row.email]) {
         users[row.email] = {
           email: row.email,
           otpFails: 0,
-          loginFails: 0
+          loginFails: 0,
+          lastAttempt: row.created_at
         };
       }
 
+      if (
+        new Date(row.created_at) >
+        new Date(users[row.email].lastAttempt)
+      ) {
+        users[row.email].lastAttempt = row.created_at;
+      }
+
       if (row.event === "otp_failed") {
-        users[row.email].otpFails = parseInt(row.count);
+        users[row.email].otpFails = parseInt(row.count, 10);
       }
 
       if (row.event === "login_failed") {
-        users[row.email].loginFails = parseInt(row.count);
+        users[row.email].loginFails = parseInt(row.count, 10);
       }
     });
 
-    // 🔹 Calculate risk per user
     const userRiskList = Object.values(users).map(user => {
       let risk = "LOW";
       let percentage = 10;
@@ -96,17 +107,15 @@ router.get("/user-risk", async (req, res) => {
       if (user.loginFails >= 5) {
         risk = "HIGH";
         percentage = 95;
-        alert = "Brute Force 🚨";
-      }
-      else if (user.otpFails >= 3) {
+        alert = "Potential Brute Force Attempt";
+      } else if (user.otpFails >= 3) {
         risk = "HIGH";
         percentage = 85;
-        alert = "OTP Failures 🚨";
-      }
-      else if (user.loginFails >= 2 || user.otpFails >= 1) {
+        alert = "Multiple OTP Failures";
+      } else if (user.loginFails >= 2 || user.otpFails >= 1) {
         risk = "MEDIUM";
         percentage = 60;
-        alert = "Suspicious ⚠️";
+        alert = "Suspicious Activity";
       }
 
       return {
@@ -117,9 +126,10 @@ router.get("/user-risk", async (req, res) => {
       };
     });
 
-    res.json(result.rows);
+    res.json(userRiskList);
 
   } catch (err) {
+    console.error("User risk error:", err);
     res.status(500).json({ error: "Error calculating user risk" });
   }
 });
